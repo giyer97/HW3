@@ -1,0 +1,178 @@
+---
+title: "ADA Homework 2"
+author: "Guhan Iyer"
+date: "9/6/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 1
+
+Import the dataset from the ADA github site. First we will need to load some packages (if you don't have these packages installed, be sure to install them first)
+
+```{r}
+
+#install.packages("readr") 
+
+library(readr) # to read in csv files
+
+```
+
+To import the dataset, we will use the reader function `read_csv()` and provide the location of the csv file we want to read in and the name we would like to give it
+
+```{r}
+C1survey <- 
+  read_csv("https://raw.githubusercontent.com/kijohnson/ADA-Fall-2021/master/Class%201%20Survey%20Fall%202021.csv")
+```
+## Question 2
+
+Let's find out how many observations are in this dataset (number of rows aka people who filled out the survey) and the number of variables (number of columns). There are a couple ways to do this. If you're in RStudio and you run the code from Question 1, then you should see the dataframe "C1survey" in the Global Environment pane on the right side of the window. It will tell you that C1survey has 28 observations of 27 variables.
+
+If you want to use code, you can use the `dim()` function, making sure to put in the name of the dataframe in the parentheses like so:
+
+```{r}
+dim(C1survey)
+``` 
+
+## Question 3
+
+The variable names in the C1survey dataframe correspond to questions in the survey. Some of them are a little long for data analysis purposes, so it makes sense to shorten them to make them easier to work with.
+
+We can rename the variables using the `names()` function and indexing the variables we want to change. Aside from the ID column, we can meaningfully shorten all variable names (variables 2 through 27). Also, so we don't have to keep switching between the dataframe tab, we can use `colnames()` to display the names already and have them handy while we change them.
+
+```{r}
+colnames(C1survey)
+```
+
+Now we can just go down the list and rename the variables using the `names()` function.
+
+```{r}
+names(C1survey)[2:27]<-
+  c("cats","dogs","desert","slogan","favDay","bird","favFood","favDrink","favSeason","favMonth",
+    "hobby","degree","specialization","software","Rexp","codinglevel","codingtime","hopes",
+    "interest","favNumber","daybirth","monthbirth","country","state","city","edlevel")
+
+colnames(C1survey) # verify the variable names have been changed correctly.
+```
+
+## Question 4
+
+It's important to know the nature of each of the variables you work with in a dataset because it will inform the type of analysis and statistical tests you will conduct. For this dataframe, let's use the `sapply()` function to first see what type of variable each variable is. Then we will use the `table()` function *with* the `sapply()` function to see how many of each variable we have instead of manually counting it.
+
+```{r}
+sapply(C1survey, class)
+
+table(sapply(C1survey, class))
+```
+
+## Question 5
+
+After running the code from questio 4, we can see that the daybirth and the monthbirth variables are listed as character variables. We would like them to be numeric variables. First, any character responses will be manually changed to numeric as appropriate (For example, "May" will be changed to 5). Second, any values that are impossible will be removed from the dataset (For example, daybirth cannot have value greater than 31).
+
+To do this, we can use the `unique()` function and specify the variables for which we want to extract unique values.
+```{r}
+unique(C1survey$daybirth)
+
+unique(C1survey$monthbirth)
+```
+There are no "impossible" values, however the "daybirth" variable has one observation that is not like the others. "Twenty-eight" should read "28". "Monthbirth" also has two observations "May" and "January" that should read "5" and "1" respectively. We can change these manually using indexing, but first we need to know their location in the dataframe. We already know the column they are in, since that's how we searched for them in the first place. To find the row, we can use the `match()` function. 
+
+```{r}
+match("twenty-eight",C1survey$daybirth)
+match("May", C1survey$monthbirth)
+match("January", C1survey$monthbirth)
+```
+Now we can see that "twenty-eight" is the 22nd observation in the daybirth column, "May" is the 21st observation in the monthbirth column, and "January" is the 26th observation in the monthbirth column. We can use these values to change them based on their index values. Keep in mind that since we still haven't converted them into numeric variables, you should add the "" marks to signify them as characters. We will convert both columns to numeric afterwards.
+
+```{r}
+C1survey[22, "daybirth"] = "28"
+C1survey[21, "monthbirth"] = "5"
+C1survey[26, "monthbirth"] = "1"
+
+# verify change of values by either checking in the dataframe or using the code below
+C1survey$daybirth
+C1survey$monthbirth
+```
+
+After we've changed all the character values to numbers, we need to recategorize these variables as numeric so we can run some basic statistics on them. We can do this using the `as.numeric()` function and create a new variable. 
+
+```{r}
+C1survey$daybirthn <- as.numeric(C1survey$daybirth)
+C1survey$monthbirthn <- as.numeric(C1survey$monthbirth)
+
+# verify class of the new variables
+
+class(C1survey$daybirthn)
+class(C1survey$monthbirthn)
+```
+
+Now that we have successfully created numeric variables for birth day and birth month, let's find the median for each variable for this dataset.
+
+```{r}
+median(C1survey$daybirthn, na.rm=TRUE) # median birth day
+median(C1survey$monthbirthn, na.rm=TRUE) # median birth month
+```
+
+## Question 6
+
+To categorize the observations in the dataset into seasons, first we need to create a new variable representing the seasons, and then assign it values based on the birth month. Those born from 12/1 to 2/29 will be "Winter", 3/1 to 5/31 is "Spring", 6/1 to 8/31 is "Summer" and 9/1 to 11/30 is "Fall". 
+
+```{r}
+C1survey$bseason <- ifelse((C1survey$monthbirthn == 12) | (C1survey$monthbirthn <= 2), "Winter", 
+                    ifelse((C1survey$monthbirthn >= 3) & (C1survey$monthbirthn <= 5), "Spring",
+                    ifelse((C1survey$monthbirthn >= 6) & (C1survey$monthbirthn <= 8), "Summer",
+                    ifelse((C1survey$monthbirthn >= 9) & (C1survey$monthbirthn <= 11), "Fall",
+                           NA))))
+class(C1survey$bseason) # check class
+birthtable <- table(C1survey$monthbirthn, C1survey$bseason) # verify that each month contributes to the correct season
+birthtable
+margin.table(birthtable, 2) # sum the columns to show how many observations were born in each season
+```
+
+## Question 7
+
+Let's have some fun with this data. Let's answer the question "Is there a statistically significant difference in the mean favorite number between those who like cats and those who don't?" 
+
+The original data provides 3 groupings for the cats variable (Yes, Ambivalent, and No). For the purposes of this analysis, we will recode this into a different dichotomized variable. Those who answered "Yes" originally will remain in the "Yes" category, and those who were "Ambivalent" or "No" clearly hate fun and cute animals (just kidding...kind of) and will be lumped together.
+
+```{r}
+
+C1survey$catsrecode <- ifelse(C1survey$cats == "Yes", "Yes",
+                        ifelse((C1survey$cats == "Ambivalent") | (C1survey$cats == "No"), "No", 
+                                                                  NA))
+
+table(C1survey$cats, C1survey$catsrecode) #verify recode
+```
+
+Turns out we have equal numbers of those who like cats and those who should reevaluate their life choices. 
+
+When conducting these types of analyses, it's always a good idea to visualize the data. Let's do this using the `boxplot()` function.
+
+``` {r}
+boxplot(C1survey$favNumber ~ C1survey$catsrecode)
+```
+
+To proceed with the analysis, let's check for equality of variances using Levene's test.
+
+```{r}
+#install.packages("car")
+library(car) # load car package to run Levene's test
+
+leveneTest(C1survey$favNumber, C1survey$catsrecode, center=mean) # Levene's test for equality of variances
+```
+
+Levene's test comes up insignificant (barely) which means we can assume equality of variance for these two groups. Let's proceed with the t test.
+
+```{r}
+# null hypothesis: Mean favorite number is equal between those who like cats and those who don't. 
+# Two-sided test
+# Can assume equality of variance based on previous Levene's test
+
+t.test(C1survey$favNumber~C1survey$catsrecode, mu=0, alt="two.sided", conf=0.95, var.eq=T, paired=F)
+```
+
+Based on the results of this analysis, there is no statistically significant difference in the mean favorite number between those who like cats and those who don't (t(26)=-1.07, p=0.29).
+
