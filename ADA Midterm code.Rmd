@@ -34,4 +34,10 @@ boxplot1 <- ggplot(data = brfss, aes(x = sexrecode, y = ht_meters)) + # ggplot s
 
 boxplot1 # display boxplot1
 
+# to determine the mean height for each sex, we can use similar code that we used to calculate the median
+
+brfss %>% 
+  group_by(sexrecode) %>% 
+  summarise(mean(ht_meters, na.rm = TRUE))
+
 ```
