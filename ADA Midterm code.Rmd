@@ -38,6 +38,6 @@ boxplot1 # display boxplot1
 
 brfss %>% 
   group_by(sexrecode) %>% 
-  summarise(mean(ht_meters, na.rm = TRUE))
+  summarise(mean(ht_meters, na.rm = TRUE)) # mean instead of median
 
 ```
