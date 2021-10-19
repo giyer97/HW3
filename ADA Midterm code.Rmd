@@ -1,0 +1,37 @@
+---
+title: "ADA Midterm exam"
+author: "Guhan Iyer"
+date: "10/17/2021"
+output: html_document
+---
+
+
+```{r}
+# Import dataset from Github
+library(readr)
+
+brfss <- read_csv("https://raw.githubusercontent.com/kijohnson/ADA-Fall-2021/master/BRFSS2017_10percent_v.csv")
+
+# check class of variables and confirm
+
+sapply(brfss, class)
+
+# Sex is a numeric variable in this dataset, so first we should convert it to a character variable
+
+brfss$sexrecode <- ifelse(brfss$SEX == 1, "Male", ifelse(brfss$SEX == 2, "Female", ifelse(brfss$SEX == 9, "Not Specified", NA))) # code creates a new character variable for sex
+
+# Calculate median height by sex
+
+library(tidyverse) # contains dplyr and ggplot, useful for descriptives and data visualization
+
+brfss %>%  # specify dataset
+  group_by(sexrecode) %>%  # specifies grouping variable, in this case sex
+  summarise(median(ht_meters, na.rm = TRUE))  # specifies dependent variable, in this case height in meters, and removes NA values
+
+boxplot1 <- ggplot(data = brfss, aes(x = sexrecode, y = ht_meters)) + # ggplot specifies data, x and y variables
+  geom_boxplot(aes(color = sexrecode)) + # geom_boxplot says that the visual should be a boxplot, aes gives color by sex
+  labs(x = "Sex", y = "Height (m)", title = "Height by Sex") # labs changes labels for title, x and y axes
+
+boxplot1 # display boxplot1
+
+```
