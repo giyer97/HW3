@@ -40,10 +40,12 @@ boxplot1 # display boxplot1. This boxplot has a group for not specified. We can 
 brfss1 <- brfss[brfss$sexrecode != "Not Specified",] # creates a new dataframe that includes all observations except those that responded "Not Specified" for the sexrecode variable
 
 # create a new boxplot with the new dataframe
-ggplot(data = brfss1, aes(x = sexrecode, y = ht_meters)) + 
+boxplot2 <- ggplot(data = brfss1, aes(x = sexrecode, y = ht_meters)) + 
   geom_boxplot(aes(color = sexrecode)) +
   labs(x = "Sex", y = "Height (m)", title = "Height by Sex") +
   theme(legend.position = "None")
+
+boxplot2 # display boxplot2
 
 # to determine the mean height for each sex, we can use similar code that we used to calculate the median
 
