@@ -1,0 +1,579 @@
+---
+title: "ADA Final Project Code"
+author: "Guhan Iyer"
+date: "10/30/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+# loading packages
+library(readr)
+library(tidyverse)
+library(survminer)
+library(survival)
+library(ggfortify)
+library(table1)
+```
+
+```{r}
+
+# importing dataset
+
+ovarian <- read_csv("ADA Data with patID.csv")
+```
+
+```{r}
+# Rename and recode necessary variables
+
+sapply(ovarian, class) # gives class of each variable in the dataset
+
+# rename variables to make it easier to code
+colnames(ovarian) <- c("race", "year", "survmo", "vstat", "area", "age", "income", "patid", "agegroup", "stage")
+
+colnames(ovarian) # verify change of variable names
+
+# As of now, all variables except for year are character variables. This will cause problems if analyzed as is. To proceed with the analysis, the variables race, income, area, agegroup, and stage must be recoded as factor variables. In addition, age, survmo, and vstat must be recoded as numeric variables
+```
+
+
+```{r}
+# Recoding the race variable from character to factor. This must be done via a numeric recode of the variable
+
+unique(ovarian$race) # this returns all possible values for the race variable. Very useful if you are not familiar with the dataset or want to confirm possible values.
+
+# When recoding into factor variables, it is useful to keep your reference group as "O" if you plan on conducting a logistic regression in the analysis.
+
+ovarian$race <- ifelse(ovarian$race == "White", 0,
+                ifelse(ovarian$race == "Black", 1,
+                ifelse(ovarian$race == "Asian or Pacific Islander", 2,
+                ifelse(ovarian$race == "American Indian/Alaska Native", 3, NA))))
+
+unique(ovarian$race) # verify recoding of responses
+
+ovarian$race <- factor(ovarian$race, levels=c(0:3), labels=c("White",
+                                                             "Black",
+                                                             "Asian or Pacific Islander",
+                                                             "American Indian/Alaska Native"))
+
+table(ovarian$race) # check values, also provides counts for each race
+
+class(ovarian$race) # confirm class is factor
+
+```
+
+
+
+```{r}
+# Recoding income into a factor variable
+
+table(ovarian$income)
+
+# The income variable ranges from <$35,000 to >$75,000 in increments of $5,000. Take care to recode IN ORDER so that subsequent interpretations are logical. For my analysis, the reference group will be the >$75,000 group and each additional level will be the next highest group.
+
+ovarian$income <- ifelse(ovarian$income =="$75,000+", 0,
+                  ifelse(ovarian$income =="$70,000 - $74,999", 1,
+                  ifelse(ovarian$income =="$65,000 - $69,999", 2,
+                  ifelse(ovarian$income =="$60,000 - $64,999", 3,
+                  ifelse(ovarian$income =="$55,000 - $59,999", 4,
+                  ifelse(ovarian$income =="$50,000 - $54,999", 5,
+                  ifelse(ovarian$income =="$45,000 - $49,999", 6,
+                  ifelse(ovarian$income =="$40,000 - $44,999", 7,
+                  ifelse(ovarian$income =="$35,000 - $39,999", 8,
+                  ifelse(ovarian$income =="< $35,000", 9, NA))))))))))
+
+ovarian$income10 <- ifelse(ovarian$income == 0, 0,
+                    ifelse(ovarian$income <= 2, 1,
+                    ifelse(ovarian$income <= 4, 2,
+                    ifelse(ovarian$income <= 6, 3,
+                    ifelse(ovarian$income <= 8, 4,
+                    ifelse(ovarian$income == 9, 5, NA))))))
+
+ovarian$income4 <- ifelse(ovarian$income10 == 0, 0,
+                   ifelse(ovarian$income10 <= 2, 1,
+                   ifelse(ovarian$income10 <= 4, 2,
+                   ifelse(ovarian$income10 == 5, 3, NA))))
+
+
+
+ovarian$income <- factor(ovarian$income, levels = c(0:9), labels = c(">$75,000",
+                                                                     "$70,000-$74,999",
+                                                                     "$65,000-$69,999",
+                                                                     "$60,000-$64,999",
+                                                                     "$55,000-$59,999",
+                                                                     "$50,000-$54,999",
+                                                                     "$45,000-$49,999",
+                                                                     "$40,000-$44,999",
+                                                                     "$35,000-$39,999",
+                                                                     "<$35,000"))
+
+
+
+ovarian$income10 <- factor(ovarian$income10, levels = c(0:5), labels = c(">$75,000",
+                                                                         "$65,000-$74,999",
+                                                                         "$55,000-$64,999",
+                                                                         "$45,000-$54,999",
+                                                                         "$35,000-$44,999",
+                                                                         "<$35,000"))
+
+
+ovarian$income4 <- factor(ovarian$income4, levels = c(0:3), labels = c(">$75,000",
+                                                                       "$55,000-$74,999",
+                                                                       "$35,000-$54,999",
+                                                                       "<$35,000"))
+
+table(ovarian$income)
+
+class(ovarian$income)
+
+table(ovarian$income10)
+
+table(ovarian$income4)
+
+class(ovarian$income10)
+class(ovarian$income4)
+
+```
+
+```{r}
+
+# Recoding area into a factor variable.
+
+table(ovarian$area) 
+
+# This variable has 5 levels. I will keep and convert this variable, but also create another variable with 3 levels: Urban, suburban, and rural.
+
+ovarian$area3 <- ifelse(ovarian$area =="Counties in metropolitan areas ge 1 million pop" |
+                        ovarian$area =="Counties in metropolitan areas of 250,000 to 1 million pop", 0,
+                 ifelse(ovarian$area =="Counties in metropolitan areas of lt 250 thousand pop" |
+                        ovarian$area =="Nonmetropolitan counties adjacent to a metropolitan area", 1,
+                 ifelse(ovarian$area =="Nonmetropolitan counties not adjacent to a metropolitan area", 2, NA)))
+
+ovarian$area2 <- ifelse(ovarian$area == "Counties in metropolitan areas ge 1 million pop" |
+                        ovarian$area == "Counties in metropolitan areas of 250,000 to 1 million pop" |
+                        ovarian$area == "Counties in metropolitan areas lt 250 thousand pop", 0, 1)
+
+
+ovarian$area3 <- factor(ovarian$area3, levels = c(0:2), labels = c("Urban", "Suburban", "Rural"))
+
+ovarian$area <- ifelse(ovarian$area =="Counties in metropolitan areas ge 1 million pop", 0,
+                ifelse(ovarian$area =="Counties in metropolitan areas of 250,000 to 1 million pop", 1,
+                ifelse(ovarian$area =="Counties in metropolitan areas of lt 250 thousand pop", 2,
+                ifelse(ovarian$area =="Nonmetropolitan counties adjacent to a metropolitan area", 3,
+                ifelse(ovarian$area =="Nonmetropolitan counties not adjacent to a metropolitan area", 4, NA)))))
+
+ovarian$area <- factor(ovarian$area, levels = c(0:4), labels = c("Metro Counties > 1 million",
+                                                                 "Metro Counties 250,000 - 1 million",
+                                                                 "Metro Counties <250,000",
+                                                                 "Non-Metro Counties near a metro area",
+                                                                 "Non-Metro Counties not near a metro area"))
+
+table(ovarian$area)
+class(ovarian$area) # check class
+
+table(ovarian$area2)
+class(ovarian$area2)
+
+
+class(ovarian$area3)
+table(ovarian$area3)
+
+ovarian$area2f <- factor(ovarian$area2, levels = c(0:1), labels = c("Urban", "Rural"))
+
+
+```
+
+
+```{r}
+
+# Recoding agegroup into a factor variable. I will also create a dichotomous age group variable of those 64 and younger and those over 65.
+
+table(ovarian$agegroup)
+
+# For this variable, I will use the youngest age group as the reference group
+
+ovarian$agegroup <- ifelse(ovarian$agegroup == "30-34 years", 0,
+                    ifelse(ovarian$agegroup == "35-39 years", 1,
+                    ifelse(ovarian$agegroup == "40-44 years", 2,
+                    ifelse(ovarian$agegroup == "45-49 years", 3,
+                    ifelse(ovarian$agegroup == "50-54 years", 4,
+                    ifelse(ovarian$agegroup == "55-59 years", 5,
+                    ifelse(ovarian$agegroup == "60-64 years", 6,
+                    ifelse(ovarian$agegroup == "65-69 years", 7,
+                    ifelse(ovarian$agegroup == "70-74 years", 8,
+                    ifelse(ovarian$agegroup == "75-79 years", 9,
+                    ifelse(ovarian$agegroup == "80-84 years", 10,
+                    ifelse(ovarian$agegroup == "85+ years", 11, NA))))))))))))
+
+ovarian$agebinary <- ifelse(ovarian$agegroup < 7, 0,
+                     ifelse(ovarian$agegroup >= 7, 1, NA))
+
+table(ovarian$agebinary)
+
+ovarian$agegroup <- factor(ovarian$agegroup, levels = c(0:11), labels = c("30-34",
+                                                                          "35-39",
+                                                                          "40-44",
+                                                                          "45-49",
+                                                                          "50-54",
+                                                                          "55-59",
+                                                                          "60-64",
+                                                                          "65-69",
+                                                                          "70-74",
+                                                                          "75-79",
+                                                                          "80-84",
+                                                                          "85+"))
+
+ovarian$agebinary <- factor(ovarian$agebinary, levels = c(0:1), labels = c("Under 65",
+                                                                           "65 and Over"))
+
+table(ovarian$agegroup)
+table(ovarian$agebinary)
+                        
+
+
+```
+
+
+```{r}
+
+# Recoding stage into a factor variable
+
+table(ovarian$stage)
+
+# The stage data is split into the primary stages (I, II, III, IV) with sub-stages (A, B , C, NOS). For the purposes of this analysis, I will create a separate variable that only takes into account overall stage. I will also create a dichotomous variable for stage the groups patients into those diagnosed before stage 3 and those diagnosed at stage 3 or higher.
+
+ovarian$stagerecode <- ifelse(ovarian$stage == "IA" |
+                              ovarian$stage == "IB" |
+                              ovarian$stage == "IC" |
+                              ovarian$stage == "INOS", 0,
+                       ifelse(ovarian$stage == "IIA" |
+                              ovarian$stage == "IIB" |
+                              ovarian$stage == "IIC" |
+                              ovarian$stage == "IINOS", 1,
+                       ifelse(ovarian$stage == "IIIA" |
+                              ovarian$stage == "IIIB" |
+                              ovarian$stage == "IIIC" |
+                              ovarian$stage == "IIINOS", 2,
+                       ifelse(ovarian$stage == "IV", 3, NA))))
+
+# ovarian$stage %in% c(“IA”, “IB”…)
+
+ovarian$stagebinary <- ifelse(ovarian$stagerecode < 2, 0,
+                       ifelse(ovarian$stagerecode >= 2, 1, NA))
+
+table(ovarian$stagerecode)
+table(ovarian$stagebinary)
+
+ovarian$stagerecode <- factor(ovarian$stagerecode, levels = c(0:3), labels = c("Stage 1",
+                                                                               "Stage 2",
+                                                                               "Stage 3",
+                                                                               "Stage 4"))
+
+ovarian$stagebinaryf <- factor(ovarian$stagebinary, levels = c(0:1), labels = c("Stage 1 or 2",
+                                                                               "Stage 3 or 4"))
+
+table(ovarian$stagerecode)
+table(ovarian$stagebinary)
+
+
+```
+
+```{r}
+
+# Recoding age as a numeric variable. This is tricky because currently age is a string variable that contains numbers AND letters. 
+
+# ovarian$age <- as.numeric(ovarian$age) # Using a code like this will not work since the observations for this variable are not entirely numbers. Running something like this will return NAs for all values. Instead, the number part of each observation must be extracted before converting into a numeric variable.
+
+ovarian$age <- substr(ovarian$age, 1, 2) # this extracts the first two strings in the age variable (the numbers) and removes the word "years" from each observation. I've also chosen to rewrite the variable but it is also feasible to create an entirely separate variable.
+
+ovarian$age <- as.numeric(ovarian$age) # this now works because the observations are entirely numbers and can be converted into numeric.
+
+class(ovarian$age) # verify change of variable to numeric
+
+
+```
+
+
+```{r}
+
+# Recoding survival months (survmo) as a numeric variable. This will be more simple than the age recode since the original outputs are only numbers.
+
+table(ovarian$survmo) # There are 27 cases where survival months is "Unknown". For now, these will be left as is and they will be converted into NA values while the remainder will become numeric.
+
+ovarian$survmo <- as.numeric(ovarian$survmo)
+
+class(ovarian$survmo)
+
+```
+
+
+```{r}
+
+# Recoding vital status (vstat) as numeric. This is a simple recode into binary variables for vital status.
+
+table(ovarian$vstat)
+
+# Since death attributable to ovarian cancer is the outcome of interest, it will be recoded as 1 while all other outcomes will be recoded as 0.
+
+ovarian$vstat <- ifelse(ovarian$vstat == "Dead (attributable to this cancer dx)", 1, 0)
+
+# We will also duplicate this variable as a factor variable because it will make it easier to incorporate into a table. For survival analysis, it is necessary to use the NUMERIC version of this variable
+
+ovarian$vstatf <- factor(ovarian$vstat, levels = c(0:1), labels = c("Censored", "Dead attributable to this cancer"))
+
+table(ovarian$vstat)
+class(ovarian$vstat)
+
+
+```
+
+
+```{r}
+# verify that all variables are in the format they need to be in
+sapply(ovarian, class)
+
+```
+
+
+
+
+```{r}
+# Creating Table 1
+
+# Before creating table 1, each variable must be labeled so that it's "code name" is not what shows up on the table
+
+label(ovarian$race)<- "Race"
+label(ovarian$agebinary)<- "Age group"
+label(ovarian$stagerecode)<- "Stage at Diagnosis"
+label(ovarian$survmo)<- "Survival Time (months)"
+label(ovarian$vstat)<- "Vital Status"
+label(ovarian$vstatf)<- "Vital Status"
+label(ovarian$income)<- "Income Group"
+label(ovarian$income10)<- "Income Group"
+label(ovarian$income4)<- "Income Group"
+label(ovarian$stagebinaryf) <- "Stage at Diagnosis"
+table1(~race + agebinary + income10 + stagerecode + survmo + vstat | area3, ovarian)
+
+# Since the missing values for survival months are distributed evenly across the 3 area categories and make up about 0.1% of each group, removing them before analyzing the data should not introduce substantial bias or influence on parameter estimates.
+
+ovarian1 <- na.omit(ovarian)
+
+table1(~race + agebinary + income4 + stagebinaryf + survmo + vstatf | area3, overall = "Total", rowlabelhead = "Variable", footnote = "SD = standard deviation", ovarian1)
+
+```
+
+
+```{r}
+# Survival analysis
+
+# In this section, we will be generating Kaplan Meier survival curves overall and for each categorical variable of interest
+
+ovariansurv <- survfit(Surv(survmo, vstat) ~ 1, ovarian1)   # overall survival data
+Total <- autoplot(ovariansurv) + labs(x = "Months", y = "Proportion Surviving", title= "KM survival plot for Ovarian Cancer") + theme(line = element_blank(),) + theme(panel.background = element_rect(fill = "white", color = NA)) + theme(axis.line = element_line())
+
+racesurv <- survfit(Surv(survmo, vstat) ~ race, ovarian1) # survival data by race
+A <- autoplot(racesurv) + labs(x = "Months", y = "Proportion Surviving", title= "KM survival plot for Ovarian Cancer by Race") + theme(line = element_blank(),) + theme(panel.background = element_rect(fill = "white", color = NA)) + theme(axis.line = element_line())
+
+areasurv <- survfit(Surv(survmo, vstat) ~ area3, ovarian1) # survival data by area
+B <- autoplot(areasurv) + labs(x = "Months", y = "Proportion Surviving", title= "KM survival plot for Ovarian Cancer by Area") + theme(line = element_blank(),) + theme(panel.background = element_rect(fill = "white", color = NA)) + theme(axis.line = element_line())
+
+incomesurv <- survfit(Surv(survmo, vstat) ~ income4, ovarian1) # survival data by income
+C <- autoplot(incomesurv) + labs(x = "Months", y = "Proportion Surviving", title= "KM survival plot for Ovarian Cancer by Income") + theme(line = element_blank(),) + theme(panel.background = element_rect(fill = "white", color = NA)) + theme(axis.line = element_line())
+
+stagesurv <- survfit(Surv(survmo, vstat) ~ stagerecode, ovarian1) # survival data by stage at diagnosis
+D <- autoplot(stagesurv) + labs(x = "Months", y = "Proportion Surviving", title= "KM survival plot for Ovarian Cancer by Stage at Diagnosis") + theme(line = element_blank(),) + theme(panel.background = element_rect(fill = "white", color = NA)) + theme(axis.line = element_line())
+
+Total
+A
+B
+C
+D
+```
+
+
+
+```{r}
+
+# Running the Cox PH regression models
+
+
+ovariancox<-coxph(Surv(survmo, vstat)~area3, ovarian1, ties="efron") 
+summary(ovariancox) # model 1, unadjusted, shows significance
+
+ovariancoxadj<-coxph(Surv(survmo, vstat)~area3 + income4 + age + race + stagerecode, ovarian1) 
+summary(ovariancoxadj) # model 2, shows significance for some variables, but not all
+
+ovcox2 <- coxph(Surv(survmo, vstat) ~ area3*stagerecode + income4 + age + race, ovarian1)
+summary(ovcox2) # interaction terms not significant
+
+
+lrtest(ovariancox, ovariancoxadj, ovcox2) # results show the second model without the interaction terms is the best model of the 3
+
+
+```
+
+
+
+
+```{r}
+
+# Creating a Forest Plot for Cox PH results. This requires creating a new dataframe from results of the previous CoxPH model
+
+#install.packages("rmeta")
+library(rmeta)
+
+coxphfp <- tibble(mean  = c(1.0258, 1.0929, 1.1129, 1.2323, 1.3950, 1.0336, 1.3035, 0.9931, 1.0059, 2.7864, 6.7879, 12.0151), 
+                    lower = c(0.9733, 1.0035, 1.0709, 1.1705, 1.2138, 1.0322, 1.2351, 0.9319, 0.8232, 2.5248, 6.3004, 11.1454),
+                    upper = c(1.081, 1.190, 1.156, 1.297, 1.603, 1.035, 1.376, 1.058, 1.229, 3.075, 7.313, 12.953),
+                    variable = c("Suburban", "*Rural", "*$55,000-$74,999", "*$35,000-$54,999", "*<$35,000", "*Age", "*Black", "Asian", "AI/AN", "*Stage 2", "*Stage 3", "*Stage 4"),
+                    OR = c("1.03", "1.09", "1.11", "1.23", "1.40", "1.03", "1.30", "0.99", "1.01", "2.78", "6.79", "12.02"),
+                    index = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12))
+
+plot1 <- ggplot(coxphfp, aes(y = index, x = mean)) +
+  geom_point(shape = 18, size = 5) +  
+  geom_errorbarh(aes(xmin = lower, xmax = upper), height = 0.25) +
+  geom_vline(xintercept = 1, color = "red", linetype = "solid" , cex = 1, alpha = 0.25) +
+  scale_y_continuous(name = "", breaks=1:12, labels = coxphfp$variable, trans = "reverse") +
+  xlab("Hazard Ratio (95% CI)") + 
+  ylab(" ") + 
+  theme_bw() +
+  theme(panel.border = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        axis.line = element_line(colour = "black"),
+        axis.text.y = element_text(size = 12, colour = "black"),
+        axis.text.x.bottom = element_text(size = 12, colour = "black"),
+        axis.title.x = element_text(size = 12, colour = "black",)) +
+  scale_x_continuous(breaks = seq(0,14,2)) +
+  labs(caption = "* indicates significance <0.05") 
+  
+plot1
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+# Binary logistic regression to see if rurality influences odds of late stage cancer diagnosis
+
+ovarianlogb <- glm(stagebinary ~ area3 + race + income4 + age, family = "binomial", data = ovarian1)
+summary(ovarianlogb)
+exp(confint(ovarianlogb))
+exp(coef(ovarianlogb))
+
+
+ovarian1$prob <- round(fitted(ovarianlogb), 2) # create probability variable
+ classificationtable<-table(ovarian1$stagebinary, ovarian1$prob > 0.5) # set classification cutoffs for classification table based on probability variable
+ classificationtable 
+ 
+sensitivity<-(classificationtable[2,2]/(classificationtable[2,2]+classificationtable[2,1]))*100
+ sensitivity
+ 
+ specificity<-(classificationtable[1,1]/(classificationtable[1,1]+classificationtable[1,2]))*100
+ specificity 
+```
+
+
+
+
+```{r}
+
+# Creating Forest plot for odds ratios
+
+logfp <- tibble(mean  = c(1.052, 0.988, 1.40, 0.791, 1.377, 1.029, 1.003, 0.977, 1.045), 
+                    lower = c(0.967, 0.86, 1.27, 0.73, 0.999, 0.970, 0.925, 0.775, 1.043),
+                    upper = c(1.146, 1.137, 1.532, 0.861, 1.924, 1.09, 1.088, 1.238, 1.047),
+                    variable = c("Suburban", "Rural", "*Black", "*Asian", "AI/AN", "$55,000-$74,999", "$35,000-$54,999", "<$35,000", "*Age"),
+                    OR = c("1.05", "0.99", "1.40", "0.79", "1.38", "1.03", "1.00", "0.98", "1.05"),
+                    index = c(1, 2, 3, 4, 5, 6, 7, 8, 9))
+
+# Now that the overall dataframe is created, we can use ggplot to make the Forest plot
+
+
+plot2 <- ggplot(logfp, aes(y = index, x = mean)) +
+  geom_point(shape = 18, size = 5) +  
+  geom_errorbarh(aes(xmin = lower, xmax = upper), height = 0.25) +
+  geom_vline(xintercept = 1, color = "red", linetype = "solid" , cex = 1, alpha = 0.25) +
+  scale_y_continuous(name = "", breaks=1:9, labels = logfp$variable, trans = "reverse") +
+  xlab("Odds Ratio (95% CI)") + 
+  ylab(" ") + 
+  theme_bw() +
+  theme(panel.border = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        axis.line = element_line(colour = "black"),
+        axis.text.y = element_text(size = 12, colour = "black"),
+        axis.text.x.bottom = element_text(size = 12, colour = "black"),
+        axis.title.x = element_text(size = 12, colour = "black",)) +
+  scale_x_continuous(breaks = seq(0, 2, 0.1)) +
+  labs(caption = "* indicates significance <0.05") 
+  
+plot2
+
+
+
+```
+
+
+
+
+```{r}
+# Running the Restricted Mean Survival Tests
+
+# install.packages("survRM2")
+# install.packages("mlr")
+library(mlr)
+library(survRM2)
+
+rmst <- rmst2(ovarian1$survmo, ovarian1$vstat, ovarian1$area2, tau = 60)
+rmst
+
+dummy <- createDummyFeatures(ovarian1, cols = c("race", "income4")) # creation of dummy variables for multicategory confounders
+dput(names(dummy))
+
+dummy$agebinaryN <- ifelse(dummy$agebinary == "Under 65", 0, 1)
+
+dummy1 <- dummy[which(dummy$survmo != 0),]
+
+
+
+rmstadj1 <- rmst2(dummy1$survmo, dummy1$vstat, dummy1$area2, tau = 60, covariates = (dummy1[,c(5,16,21:23, 25:27)]))
+rmstadj1
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
